@@ -1,0 +1,28 @@
+# Normalize line endings so the repository is identical on Windows, macOS, and
+# Linux. Without this, a Windows checkout can rewrite every file to CRLF and
+# produce a diff of the entire codebase.
+* text=auto eol=lf
+
+# Windows-only files keep CRLF.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary files must never be line-ending converted.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.pdf  binary
+*.docx binary
+*.xlsx binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+
+# Lockfiles are generated; collapse them in pull-request diffs.
+package-lock.json linguist-generated=true diff=none
+
+# Keep test fixtures byte-exact. The chunking and verification tests assert
+# character offsets, so a line-ending rewrite would break them.
+backend/tests/fixtures/* -text

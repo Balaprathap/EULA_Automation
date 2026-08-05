@@ -1,0 +1,18 @@
+%% Analysis pipeline - stages are persisted, so a restarted worker resumes
+flowchart LR
+    Q(["queued"]) --> P["parsing<br/>extract + normalize"]
+    P --> C["chunking<br/>clause-aware, exact offsets"]
+    C --> R["retrieving<br/>embed + index"]
+    R --> E["extracting<br/>per category, hybrid RAG + Claude"]
+    E --> V["verifying<br/>every quote checked in source"]
+    V --> S["scoring<br/>deterministic severity"]
+    S --> DONE(["complete"])
+    S --> PARTIAL(["partial<br/>some categories need review"])
+
+    E -.->|"provider error<br/>invalid output x2<br/>flag_for_review"| NR["category marked<br/>needs_review"]
+    NR --> V
+    V -.->|"quote not found<br/>in cited chunk"| QUAR["quarantined<br/>excluded from score"]
+
+    style DONE fill:#d1fae5
+    style PARTIAL fill:#fef3c7
+    style QUAR fill:#fee2e2

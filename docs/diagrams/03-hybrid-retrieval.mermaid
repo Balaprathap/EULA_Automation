@@ -1,0 +1,22 @@
+%% Hybrid retrieval with reciprocal rank fusion and a visible fallback chain
+flowchart TB
+    CAT["Policy category<br/>name + description + guidance + keywords"] --> QRY["Build retrieval query"]
+    QRY --> DENSE["pgvector cosine search<br/>HNSW index"]
+    QRY --> KW["PostgreSQL full-text search<br/>ts_rank_cd over tsvector"]
+
+    DENSE --> RRF{"both available?"}
+    KW --> RRF
+
+    RRF -->|"yes"| FUSE["Reciprocal Rank Fusion<br/>score = sum 1 / (60 + rank)"]
+    FUSE --> TOPK["top K chunks<br/>mode = hybrid"]
+
+    RRF -->|"keyword failed"| D2["dense only<br/>confidence capped at 0.85"]
+    RRF -->|"dense failed"| K2["keyword only<br/>confidence capped at 0.70"]
+    RRF -->|"both failed"| SCAN["bounded ordinal scan<br/>confidence capped at 0.55"]
+
+    D2 --> WARN["degraded flag recorded<br/>shown in the UI<br/>severity capped at high"]
+    K2 --> WARN
+    SCAN --> WARN
+
+    style TOPK fill:#d1fae5
+    style WARN fill:#fef3c7

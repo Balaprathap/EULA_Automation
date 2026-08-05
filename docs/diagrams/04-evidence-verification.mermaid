@@ -1,0 +1,20 @@
+%% Evidence verification - how a fabricated quote is structurally blocked
+flowchart TB
+    PROP["Model proposes a finding<br/>quote + chunk_id + confidence"] --> C1{"chunk exists?"}
+    C1 -->|"no"| QUAR["QUARANTINED<br/>excluded from score<br/>never shown as confirmed"]
+    C1 -->|"yes"| C2{"chunk belongs to<br/>this document?"}
+    C2 -->|"no"| QUAR
+    C2 -->|"yes"| C3{"document belongs to<br/>this organization?"}
+    C3 -->|"no"| QUAR
+    C3 -->|"yes"| C4{"quote is an exact<br/>substring of the chunk?"}
+    C4 -->|"yes"| OK["VERIFIED<br/>method = offset_exact"]
+    C4 -->|"no"| C5{"quote matches after<br/>identical normalization?"}
+    C5 -->|"no"| QUAR
+    C5 -->|"yes"| OK2["VERIFIED<br/>method = offset_normalized<br/>offsets recovered via index map"]
+
+    OK --> ABS["Recompute absolute<br/>document offsets"]
+    OK2 --> ABS
+    ABS --> STORE["Persist finding_evidence<br/>UI highlights this exact span"]
+
+    style QUAR fill:#fee2e2
+    style STORE fill:#d1fae5

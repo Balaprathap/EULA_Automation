@@ -1,0 +1,29 @@
+%% Deterministic scoring - the model has no path to severity
+flowchart TB
+    subgraph Model["From the model (untrusted influence)"]
+        CONF["confidence 0.0 - 1.0"]
+    end
+
+    subgraph Policy["From the organization's policy (operator-controlled)"]
+        W["severity_weight"]
+        T["confidence_threshold"]
+        ESC["escalate flag"]
+    end
+
+    CONF --> CALC["weighted_risk = confidence x severity_weight"]
+    W --> CALC
+    CALC --> BAND["map to band<br/>>=0.80 critical<br/>>=0.60 high<br/>>=0.40 medium<br/>>=0.20 low<br/>else info"]
+    T --> ADJ["below threshold: demote one level"]
+    ESC --> ADJ2["escalate: promote one level"]
+    BAND --> ADJ --> ADJ2 --> DEG{"degraded retrieval?"}
+    DEG -->|"yes"| CAP["cap at high<br/>severity_source = degraded_cap"]
+    DEG -->|"no"| MACH["machine_severity<br/>severity_source = deterministic"]
+    CAP --> PERSIST
+    MACH --> PERSIST["persist machine_severity<br/>+ all inputs + explanation"]
+
+    PERSIST --> HUMAN{"reviewer override?"}
+    HUMAN -->|"yes"| OVR["override_severity set<br/>machine_severity UNCHANGED<br/>immutable review row appended"]
+    HUMAN -->|"no"| EFF["effective severity = machine"]
+
+    style Policy fill:#e0e7ff
+    style Model fill:#fee2e2

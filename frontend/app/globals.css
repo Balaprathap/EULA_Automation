@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind utilities;
+@tailwind components;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
+    @apply dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  /* Visible keyboard focus everywhere. Mouse users are unaffected. */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-slate-900 ring-offset-2 ring-offset-white;
+    @apply dark:ring-slate-100 dark:ring-offset-slate-950;
+  }
+
+  /* Respect users who ask for reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  mark.evidence {
+    @apply rounded bg-yellow-200 px-0.5 text-slate-900;
+    @apply dark:bg-yellow-500/40 dark:text-yellow-50;
+  }
+
+  /* Skip link: first tab stop, hidden until focused. */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50;
+    @apply focus:rounded-md focus:bg-slate-900 focus:px-4 focus:py-2 focus:text-white;
+    @apply dark:focus:bg-slate-100 dark:focus:text-slate-900;
+  }
+}
+
+/* Print-friendly report view: drop chrome, force light, expand panes. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-block {
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+  a[href]::after {
+    content: '';
+  }
+}

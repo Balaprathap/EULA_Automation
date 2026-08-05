@@ -1,0 +1,65 @@
+ACME CLOUD SERVICES END USER LICENSE AGREEMENT
+
+Last updated: January 14, 2026
+
+1. DEFINITIONS
+
+1.1 "Agreement" means this End User License Agreement together with any order form referencing it.
+
+1.2 "Customer Data" means any data, content, or materials submitted to the Service by Customer or its authorized end users.
+
+1.3 "Subprocessor" means any third party engaged by Acme to process Customer Data on Acme's behalf.
+
+2. LICENSE GRANT
+
+Subject to Customer's continued compliance with this Agreement and payment of all applicable fees, Acme grants Customer a limited, non-exclusive, non-transferable, revocable license to access and use the Service solely for Customer's internal business purposes during the Subscription Term.
+
+3. INTELLECTUAL PROPERTY AND CONTENT LICENSE
+
+3.1 Acme retains all right, title, and interest in and to the Service, including all software, documentation, and derivative works thereof.
+
+3.2 Customer grants Acme a worldwide, perpetual, irrevocable, royalty-free, sublicensable, and transferable license to use, reproduce, modify, distribute, publicly display, and create derivative works from Customer Data for any purpose, including the training and improvement of machine learning models, and such license shall survive termination of this Agreement.
+
+4. DATA RETENTION
+
+4.1 Acme may retain Customer Data indefinitely following termination of this Agreement for archival, security, analytics, and product improvement purposes, notwithstanding any deletion request submitted by Customer.
+
+4.2 Acme will use commercially reasonable efforts to delete identifiable Customer Data within one hundred eighty (180) days of a verified written deletion request, except where retention is required by applicable law or Acme's legitimate business interests.
+
+5. DATA SHARING AND SUBPROCESSORS
+
+5.1 Acme may disclose Customer Data to its affiliates, service providers, advertising partners, and analytics vendors without prior notice to or consent from Customer.
+
+5.2 Acme may engage additional Subprocessors at its sole discretion and is under no obligation to notify Customer of, or obtain consent for, any addition or replacement of a Subprocessor.
+
+6. FEES, AUTOMATIC RENEWAL, AND CANCELLATION
+
+6.1 The Subscription Term shall automatically renew for successive twelve (12) month periods at the then-current list price unless Customer provides written notice of non-renewal at least ninety (90) days prior to the end of the then-current term.
+
+6.2 Cancellation requests must be submitted in writing by certified mail to Acme's registered corporate address. Cancellation requests submitted by email, in-application message, or telephone will not be honored.
+
+6.3 All fees are non-refundable, including fees paid for any unused portion of a Subscription Term following termination for any reason.
+
+7. INDEMNIFICATION
+
+Customer shall defend, indemnify, and hold harmless Acme, its officers, directors, employees, affiliates, and agents from and against any and all claims, damages, losses, liabilities, costs, and expenses, including reasonable attorneys' fees, arising out of or relating to Customer's use of the Service, Customer Data, or any breach of this Agreement, regardless of whether such claims arise in whole or in part from Acme's own negligence.
+
+8. LIMITATION OF LIABILITY
+
+8.1 IN NO EVENT SHALL ACME BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL, WHETHER ARISING IN CONTRACT, TORT, OR OTHERWISE.
+
+8.2 ACME'S TOTAL AGGREGATE LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED FIFTY UNITED STATES DOLLARS (USD 50.00), REGARDLESS OF THE AMOUNT OF FEES PAID BY CUSTOMER.
+
+9. GOVERNING LAW
+
+This Agreement shall be governed by and construed in accordance with the laws of the Cayman Islands, without regard to its conflict of law provisions. Customer irrevocably consents to the exclusive jurisdiction of the courts located in George Town, Grand Cayman.
+
+10. BINDING ARBITRATION AND CLASS ACTION WAIVER
+
+10.1 Any dispute arising out of or relating to this Agreement shall be resolved exclusively by final and binding arbitration administered on an individual basis, and Customer irrevocably waives any right to a trial by jury.
+
+10.2 CUSTOMER AGREES THAT ANY DISPUTE RESOLUTION PROCEEDING WILL BE CONDUCTED ONLY ON AN INDIVIDUAL BASIS AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS, COLLECTIVE, OR REPRESENTATIVE PROCEEDING.
+
+11. MODIFICATIONS
+
+Acme may modify this Agreement at any time by posting a revised version to its website. Continued use of the Service following such posting constitutes acceptance of the revised Agreement. Acme is under no obligation to provide individual notice of any modification.

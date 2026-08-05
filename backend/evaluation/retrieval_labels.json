@@ -1,0 +1,81 @@
+{
+  "description": "Labeled retrieval evaluation set for the bundled sample agreement (tests/fixtures/sample_eula.txt). For each policy category, `relevant_markers` are verbatim substrings that appear in the clause(s) a correct retrieval must surface. A retrieved chunk counts as relevant if it contains any marker for that category.",
+  "document": "tests/fixtures/sample_eula.txt",
+  "categories": [
+    {
+      "category": "data_retention",
+      "relevant_markers": [
+        "may retain Customer Data indefinitely following termination",
+        "delete identifiable Customer Data within one hundred eighty"
+      ]
+    },
+    {
+      "category": "data_sharing",
+      "relevant_markers": [
+        "disclose Customer Data to its affiliates, service providers, advertising partners"
+      ]
+    },
+    {
+      "category": "subprocessors",
+      "relevant_markers": [
+        "engage additional Subprocessors at its sole discretion"
+      ]
+    },
+    {
+      "category": "ip_ownership",
+      "relevant_markers": [
+        "retains all right, title, and interest in and to the Service"
+      ]
+    },
+    {
+      "category": "content_licensing",
+      "relevant_markers": [
+        "worldwide, perpetual, irrevocable, royalty-free, sublicensable"
+      ]
+    },
+    {
+      "category": "automatic_renewal",
+      "relevant_markers": [
+        "automatically renew for successive twelve (12) month periods"
+      ]
+    },
+    {
+      "category": "cancellation",
+      "relevant_markers": [
+        "Cancellation requests must be submitted in writing by certified mail",
+        "All fees are non-refundable"
+      ]
+    },
+    {
+      "category": "indemnification",
+      "relevant_markers": [
+        "shall defend, indemnify, and hold harmless Acme"
+      ]
+    },
+    {
+      "category": "limitation_of_liability",
+      "relevant_markers": [
+        "IN NO EVENT SHALL ACME BE LIABLE FOR ANY INDIRECT",
+        "TOTAL AGGREGATE LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED"
+      ]
+    },
+    {
+      "category": "governing_law",
+      "relevant_markers": [
+        "governed by and construed in accordance with the laws of the Cayman Islands"
+      ]
+    },
+    {
+      "category": "arbitration",
+      "relevant_markers": [
+        "resolved exclusively by final and binding arbitration"
+      ]
+    },
+    {
+      "category": "class_action_waiver",
+      "relevant_markers": [
+        "NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS"
+      ]
+    }
+  ]
+}

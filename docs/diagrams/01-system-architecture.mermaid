@@ -1,0 +1,35 @@
+%% System architecture - ClauseGuard (Automated EULA Compliance Extraction)
+flowchart TB
+    subgraph Browser["Browser"]
+        UI["Next.js App Router<br/>TypeScript + Tailwind"]
+    end
+
+    subgraph Managed["Managed services"]
+        AUTH["Supabase Auth<br/>JWT issuance"]
+        STORE["Supabase Storage<br/>private bucket, org-prefixed keys"]
+        PG[("Supabase Postgres<br/>pgvector + tsvector + RLS")]
+        REDIS[("Redis<br/>queue + rate limits + cache")]
+    end
+
+    subgraph Backend["Backend (one Docker image, two entrypoints)"]
+        API["FastAPI API<br/>uvicorn app.main:app"]
+        WORKER["Analysis worker<br/>python -m app.worker"]
+    end
+
+    subgraph Providers["AI providers"]
+        CLAUDE["Anthropic Messages API<br/>extraction + summary"]
+        EMBED["Embedding provider<br/>OpenAI / Voyage"]
+    end
+
+    UI -->|"sign in / sign up"| AUTH
+    UI -->|"Bearer JWT"| API
+    API -->|"verify signature"| AUTH
+    API --> PG
+    API --> STORE
+    API -->|"enqueue 202 Accepted"| REDIS
+    REDIS -->|"BRPOPLPUSH reserve"| WORKER
+    WORKER --> PG
+    WORKER --> CLAUDE
+    WORKER --> EMBED
+    WORKER -->|"heartbeat"| REDIS
+    UI -->|"poll progress"| API

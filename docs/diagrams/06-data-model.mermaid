@@ -1,0 +1,54 @@
+%% Data model - every table is organization-scoped and RLS-protected
+erDiagram
+    organizations ||--o{ profiles : "has members"
+    organizations ||--o{ documents : "owns"
+    organizations ||--o{ policies : "owns"
+    documents ||--o{ document_chunks : "split into"
+    documents ||--o{ analyses : "analyzed by"
+    policies ||--o{ policy_rules : "defines categories"
+    policies ||--o{ analyses : "scored against"
+    analyses ||--o{ analysis_categories : "per-category outcome"
+    analyses ||--o{ findings : "produces"
+    findings ||--o| finding_evidence : "verified quote"
+    findings ||--o{ finding_reviews : "immutable review history"
+    document_chunks ||--o{ findings : "cited by"
+    policy_rules ||--o{ findings : "scored by"
+    organizations ||--o{ audit_logs : "records actions"
+    organizations ||--o{ usage_events : "records tokens and cost"
+
+    organizations {
+        uuid id PK
+        text name
+        text slug UK
+        boolean is_demo
+    }
+    documents {
+        uuid id PK
+        uuid org_id FK
+        text normalized_text "authoritative coordinate space"
+        text content_sha256
+        text status
+        timestamptz deleted_at "soft delete"
+    }
+    document_chunks {
+        uuid id PK
+        int start_offset "into normalized_text"
+        int end_offset
+        vector embedding "pgvector, HNSW"
+        tsvector fts "generated column"
+    }
+    findings {
+        uuid id PK
+        numeric model_confidence "model input"
+        numeric severity_weight "policy input"
+        text machine_severity "computed, immutable"
+        text override_severity "human, nullable"
+        text verification_status
+    }
+    finding_evidence {
+        uuid id PK
+        text quote "verified verbatim"
+        int doc_start_offset
+        int doc_end_offset
+        text verification_method
+    }

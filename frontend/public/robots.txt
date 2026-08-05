@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /dashboard
+Disallow: /documents
+Disallow: /policies
+Disallow: /usage
+Disallow: /admin
