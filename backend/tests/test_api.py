@@ -524,38 +524,56 @@ class TestRateLimiting:
         assert error.envelope("req-1")["error"]["details"]["retry_after_seconds"] == 42
 
 
-class TestCorsConfiguration:
-    def test_production_rejects_a_wildcard_origin(self, monkeypatch):
-        from app.core.config import Settings
+def production_settings(**overrides):
+    """Build a valid production Settings, then apply the override under test.
 
+    Two details matter here and are easy to get wrong:
+
+    * ``_env_file=None`` keeps the developer's real .env out, so these tests do
+      not pass or fail depending on what happens to be on someone's machine.
+    * ``embedding_provider`` is set explicitly. CI exports
+      ``EMBEDDING_PROVIDER=deterministic`` (offline, so no test makes a paid
+      embedding call), and pydantic-settings reads that from the process
+      environment. Without an explicit value the production guard rejecting the
+      test-only provider fires *before* the validation each test is actually
+      exercising, and the assertion fails for the wrong reason.
+
+    All values are dummies confined to the test suite - never real credentials.
+    """
+    from app.core.config import Settings
+
+    kwargs: dict = {
+        "_env_file": None,
+        "environment": "production",
+        "cors_origins": ["https://app.example.com"],
+        "database_url": "postgresql://user:pass@localhost:5432/db",
+        "supabase_url": "https://example.supabase.co",
+        "supabase_service_role_key": "dummy-service-role-key",
+        "supabase_jwt_secret": "dummy-jwt-secret",
+        "anthropic_api_key": "dummy-anthropic-key",
+        # A real, production-valid provider - see app/providers/embedding/factory.py
+        "embedding_provider": "openai",
+        "embedding_api_key": "dummy-embedding-key",
+    }
+    kwargs.update(overrides)
+    return Settings(**kwargs)
+
+
+class TestCorsConfiguration:
+    def test_baseline_production_settings_are_valid(self):
+        """Guards the helper itself: the baseline must not raise, or every test
+        below would pass for the wrong reason."""
+        settings = production_settings()
+        assert settings.is_production is True
+        assert settings.embedding_provider == "openai"
+
+    def test_production_rejects_a_wildcard_origin(self):
         with pytest.raises(ValueError, match="allowlist"):
-            Settings(
-                _env_file=None,  # never read the developer's real .env
-                environment="production",
-                cors_origins=["*"],
-                database_url="postgresql://x",
-                supabase_url="https://x.supabase.co",
-                supabase_service_role_key="k",
-                supabase_jwt_secret="s",
-                anthropic_api_key="a",
-                embedding_api_key="e",
-            )
+            production_settings(cors_origins=["*"])
 
     def test_production_rejects_the_test_embedding_provider(self):
-        from app.core.config import Settings
-
         with pytest.raises(ValueError, match="test-only"):
-            Settings(
-                _env_file=None,
-                environment="production",
-                embedding_provider="deterministic",
-                cors_origins=["https://app.example.com"],
-                database_url="postgresql://x",
-                supabase_url="https://x.supabase.co",
-                supabase_service_role_key="k",
-                supabase_jwt_secret="s",
-                anthropic_api_key="a",
-            )
+            production_settings(embedding_provider="deterministic")
 
     @pytest.mark.parametrize(
         "raw,expected",
@@ -584,20 +602,29 @@ class TestCorsConfiguration:
             Settings(_env_file=None)
 
     def test_missing_variables_are_named_explicitly(self):
-        from app.core.config import Settings
+        with pytest.raises(ValueError) as excinfo:
+            production_settings(anthropic_api_key="")
+        assert "ANTHROPIC_API_KEY" in str(excinfo.value)
+
+    def test_production_guards_survive_a_deterministic_ci_environment(self, monkeypatch):
+        """Regression for this exact CI failure.
+
+        With EMBEDDING_PROVIDER=deterministic in the process environment, the
+        CORS and missing-secret checks must still fail for their own reasons -
+        and the deterministic guard must still fire when it is the thing under
+        test.
+        """
+        monkeypatch.setenv("EMBEDDING_PROVIDER", "deterministic")
+
+        with pytest.raises(ValueError, match="allowlist"):
+            production_settings(cors_origins=["*"])
 
         with pytest.raises(ValueError) as excinfo:
-            Settings(
-                _env_file=None,
-                environment="production",
-                cors_origins=["https://app.example.com"],
-                database_url="postgresql://x",
-                supabase_url="https://x.supabase.co",
-                supabase_service_role_key="k",
-                supabase_jwt_secret="s",
-                embedding_api_key="e",
-            )
+            production_settings(anthropic_api_key="")
         assert "ANTHROPIC_API_KEY" in str(excinfo.value)
+
+        with pytest.raises(ValueError, match="test-only"):
+            production_settings(embedding_provider="deterministic")
 
 
 class TestReportEndpoints:
