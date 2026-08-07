@@ -321,3 +321,60 @@ class TestSchemaGuarantees:
         assert "ON DELETE SET NULL" in all_sql
         # A policy in use by an analysis must not vanish underneath it.
         assert "REFERENCES policies(id) ON DELETE RESTRICT" in all_sql
+
+
+class TestDeploymentConfig:
+    """Deployment blockers that are invisible until a platform rejects them."""
+
+    @staticmethod
+    def _dockerfile() -> str:
+        return (MIGRATIONS_DIR.parent / "Dockerfile").read_text(encoding="utf-8")
+
+    def test_api_binds_the_injected_port(self):
+        """Render injects $PORT. Exec-form CMD would pass the literal string."""
+        text = self._dockerfile()
+        assert "${PORT}" in text, "the container must bind the platform-provided port"
+        assert 'CMD ["uvicorn"' not in text, "exec form does not expand ${PORT}; use shell form"
+
+    def test_port_has_a_local_default(self):
+        assert "ENV PORT=8000" in self._dockerfile(), "docker-compose relies on the default"
+
+    def test_healthcheck_follows_the_same_port(self):
+        assert "${PORT}/health" in self._dockerfile()
+
+    def test_container_runs_as_non_root(self):
+        assert "USER appuser" in self._dockerfile()
+
+    def test_render_blueprint_defines_both_services(self):
+
+        blueprint = (MIGRATIONS_DIR.parents[1] / "render.yaml").read_text(encoding="utf-8")
+        assert "name: clauseguard-api" in blueprint
+        assert "name: clauseguard-worker" in blueprint
+        assert "type: worker" in blueprint
+        assert "dockerCommand: python -m app.worker" in blueprint
+        assert "healthCheckPath: /health" in blueprint
+        # A worker must not advertise an HTTP health check.
+        worker_block = blueprint[blueprint.index("name: clauseguard-worker") :]
+        assert "healthCheckPath" not in worker_block
+
+    def test_blueprint_contains_no_secret_values(self):
+        """Every secret must be `sync: false`, never a literal."""
+        blueprint = (MIGRATIONS_DIR.parents[1] / "render.yaml").read_text(encoding="utf-8")
+        secret_keys = [
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "SUPABASE_JWT_SECRET",
+            "DATABASE_URL",
+            "REDIS_URL",
+            "ANTHROPIC_API_KEY",
+            "EMBEDDING_API_KEY",
+        ]
+        for key in secret_keys:
+            index = blueprint.index(f"key: {key}")
+            following = blueprint[index : index + 200]
+            assert "sync: false" in following, f"{key} must not carry a literal value"
+
+    def test_optional_clouds_are_disabled_in_the_blueprint(self):
+        blueprint = (MIGRATIONS_DIR.parents[1] / "render.yaml").read_text(encoding="utf-8")
+        assert blueprint.count("key: AWS_REPORT_STORAGE_ENABLED") == 2
+        assert blueprint.count("key: AWS_SES_ENABLED") == 2
+        assert 'value: "true"' not in blueprint.split("AWS_REPORT_STORAGE_ENABLED")[1][:60]

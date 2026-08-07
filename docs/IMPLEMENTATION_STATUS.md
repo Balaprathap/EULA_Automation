@@ -330,3 +330,54 @@ The core has **never processed a real agreement**: no Anthropic or embedding key
 has been configured, so every AI path is exercised only through test doubles.
 This is the highest-priority gap, ahead of any cloud work. See
 `docs/SETUP_CHECKLIST.md`.
+
+
+---
+
+## Deployment status
+
+Last updated: 2026-08-06
+
+### Verified in production
+
+**Nothing.** The application has not been deployed. No Vercel, Render, Supabase
+production or Upstash resource has been provisioned, and no live URL exists.
+
+### Verified locally / in CI
+
+| Area | Status |
+|---|---|
+| Backend suite | **583 tests pass** |
+| Lint / format / types | ruff clean, 93 files formatted, mypy clean on 70 files |
+| Migrations | All 12 apply to a real PostgreSQL 16 + pgvector, twice (idempotent), then seed |
+| Frontend | lint, typecheck, 18 tests, production build all passed earlier in this session; **source unchanged since** |
+| Container port binding | Dockerfile `CMD` binds `${PORT}`; expansion verified for Render (10000) and compose (8000) |
+| Render Blueprint | `render.yaml` defines both services; tests assert no secret carries a literal value |
+
+### Deployment blockers fixed in this pass
+
+1. **Dockerfile could never bind Render's `$PORT`.** The exec-form `CMD`
+   hardcoded 8000 and would have passed the literal string `$PORT` had it been
+   templated. Render's port detection would have failed and the service would
+   never have gone live. Now shell form with `${PORT}` and an `ENV PORT=8000`
+   default so docker-compose is unaffected. Pinned by tests.
+2. **No `render.yaml`.** Added, defining API and worker from one image.
+3. **`HEALTHCHECK` hardcoded port 8000**, which would have broken once the app
+   bound a different port. Now follows `${PORT}`.
+
+### Still required before deployment
+
+1. **Commit and push to GitHub** — the repository has **0 commits**. Vercel and
+   Render deploy from GitHub and cannot see a local folder. This is the single
+   hard blocker.
+2. Anthropic and embedding API keys.
+3. Supabase production project, Upstash Redis instance.
+4. Provision the three services and wire origins (`docs/INFRASTRUCTURE.md` § D1–D6).
+
+### Cloud integration status
+
+- **AWS** — S3 and SES implemented behind disabled feature flags and validated
+  with offline AWS API stubs. Live AWS verification is pending.
+- **Google Cloud** — integration has not yet been implemented.
+
+The project must not be described as multi-cloud.

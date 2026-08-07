@@ -344,6 +344,27 @@ at any nesting depth, plus token-shaped strings by pattern.
 See [`docs/SECURITY.md`](docs/SECURITY.md) and
 [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md).
 
+## Deployment status
+
+**Not yet deployed.** No live URL is claimed in this repository.
+
+| Component | Target | Status |
+|---|---|---|
+| Frontend | Vercel | Configured, not deployed |
+| API | Render Web Service | Configured via [`render.yaml`](render.yaml), not deployed |
+| Worker | Render Background Worker | Configured via [`render.yaml`](render.yaml), not deployed |
+| Database / Auth / Storage | Supabase | Migrations ready, production project not provisioned |
+| Queue / cache | Upstash Redis | Not provisioned |
+
+Step-by-step runbook: [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)
+§ *Production deployment runbook*.
+
+| Field | Value |
+|---|---|
+| Deployed frontend URL | `TODO: https://…` |
+| Deployed API URL | `TODO: https://…` |
+| Demo video | `TODO: https://…` |
+
 ## Cloud integrations
 
 | Cloud | Role | Status |

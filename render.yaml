@@ -1,0 +1,153 @@
+# Render Blueprint for ClauseGuard.
+#
+# Defines both backend services from the same Docker image, so the API and the
+# analysis worker can never drift apart.
+#
+# Secrets are NOT declared here. Every value marked `sync: false` must be set in
+# the Render dashboard (or a linked environment group). Nothing secret belongs
+# in a committed file.
+#
+#   Render -> New -> Blueprint -> point at this repository.
+
+services:
+  # ---------------------------------------------------------------- API ----
+  - type: web
+    name: clauseguard-api
+    runtime: docker
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+
+      # --- Supabase (set in the dashboard) ---
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: documents
+      - key: SUPABASE_REPORTS_BUCKET
+        value: reports
+      - key: DATABASE_URL
+        sync: false
+
+      # --- Queue / cache ---
+      - key: REDIS_URL
+        sync: false
+
+      # --- AI providers ---
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false
+      - key: EMBEDDING_PROVIDER
+        value: openai
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: EMBEDDING_DIMENSIONS
+        value: "1536"
+
+      # --- URLs / CORS (set APP_BASE_URL and CORS_ORIGINS to the Vercel URL) ---
+      - key: APP_BASE_URL
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+      # --- Limits ---
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: MAX_DOCUMENT_PAGES
+        value: "150"
+      - key: RATE_LIMIT_ANALYSES_PER_HOUR
+        value: "20"
+      - key: RATE_LIMIT_REQUESTS_PER_MINUTE
+        value: "200"
+
+      # --- Email: console logs a redacted line and sends nothing ---
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: EMAIL_FROM
+        sync: false
+
+      # --- Optional clouds: DISABLED for the first deployment ---
+      - key: AWS_REPORT_STORAGE_ENABLED
+        value: "false"
+      - key: AWS_SES_ENABLED
+        value: "false"
+
+  # ------------------------------------------------------------- WORKER ----
+  # Same repository, same Dockerfile, different command. A worker has no public
+  # HTTP endpoint and no health check path.
+  - type: worker
+    name: clauseguard-worker
+    runtime: docker
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m app.worker
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: documents
+      - key: SUPABASE_REPORTS_BUCKET
+        value: reports
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false
+      - key: EMBEDDING_PROVIDER
+        value: openai
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: EMBEDDING_DIMENSIONS
+        value: "1536"
+      - key: APP_BASE_URL
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: EMAIL_FROM
+        sync: false
+      - key: AWS_REPORT_STORAGE_ENABLED
+        value: "false"
+      - key: AWS_SES_ENABLED
+        value: "false"

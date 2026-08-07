@@ -26,10 +26,16 @@ COPY tests ./tests
 RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# PORT is injected by the host platform (Render sets it, typically 10000) and
+# falls back to 8000 for docker-compose and local runs.
+ENV PORT=8000
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+    CMD curl -fsS "http://localhost:${PORT}/health" || exit 1
 
-# Default entrypoint: the API. docker-compose overrides it for the worker.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so ${PORT} is expanded at runtime. Exec form would pass the literal
+# string "$PORT" to uvicorn and the service would never bind, which makes the
+# container fail platform port detection.
+# docker-compose overrides this command for the worker entrypoint.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}

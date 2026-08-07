@@ -491,3 +491,166 @@ AWS_SES_ENABLED=true
 Set both flags back to `false` and restart. The application returns to Supabase
 Storage and the console/SMTP provider immediately; no data migration is needed,
 and reports already in S3 stay there.
+
+
+---
+
+# Production deployment runbook (Vercel + Render + Supabase + Upstash)
+
+> **Status: not yet deployed.** No live URL is claimed anywhere in this
+> repository. Every step below still needs to be performed.
+
+**Prerequisite: the repository must be committed and pushed to GitHub.**
+Vercel and Render both deploy *from GitHub* — they cannot see a local folder.
+
+## D1. Supabase (production project)
+
+1. Create a **new** project — do not reuse a development one.
+2. **Database → Extensions**: confirm `vector` is available. `pg_trgm` is
+   optional (the trigram index is skipped if absent).
+3. Apply migrations from your machine, pointed at production:
+
+   ```powershell
+   cd backend
+   $env:DATABASE_URL = "<supabase connection string>"
+   python -m scripts.migrate      # 12 migrations, no --local-shim for Supabase
+   python -m scripts.seed         # default policy + 12 categories
+   ```
+
+4. Verify in the SQL editor:
+
+   ```sql
+   SELECT count(*) FROM schema_migrations;                       -- expect 12
+   SELECT count(*) FROM policy_rules;                            -- expect 12
+   SELECT count(*) FROM pg_policies WHERE schemaname = 'public'; -- expect 25+
+   SELECT id, public FROM storage.buckets;                       -- documents, reports; both public = false
+   ```
+
+   Migrations create both private buckets and their RLS policies — no dashboard
+   work is needed. **If either bucket shows `public = true`, stop and fix it.**
+
+5. **Authentication → URL Configuration** — leave until step D5, when the Vercel
+   URL exists.
+
+## D2. Upstash Redis
+
+1. Create a database in a region near your Render service.
+2. Copy the **TLS** connection string — it must start with `rediss://`.
+3. Use it as `REDIS_URL` for **both** the API and the worker. They must share one
+   instance: the API pushes to the queue and the worker blocks on it.
+
+> The worker uses blocking `BRPOPLPUSH`. If Upstash rejects blocking commands on
+> your plan, the worker will never claim a job — use a standard Redis instance.
+
+No Redis credential ever reaches the frontend.
+
+## D3. Render API (Web Service)
+
+Easiest path — **Blueprint**: Render → New → Blueprint → select this repo. It
+reads [`render.yaml`](../render.yaml), which defines the API and worker together.
+
+Manual equivalent:
+
+| Setting | Value |
+|---|---|
+| Type | Web Service |
+| Runtime | Docker |
+| Root directory | `backend` |
+| Dockerfile | `./Dockerfile` |
+| Branch | `main` |
+| Health check path | `/health` |
+| Start command | *(leave blank — the Dockerfile `CMD` binds `$PORT`)* |
+
+Set every variable marked `sync: false` in `render.yaml` via the dashboard.
+`CORS_ORIGINS` and `APP_BASE_URL` need the Vercel URL, so set them in step D5.
+
+Verify after deploy:
+
+```bash
+curl https://<api>.onrender.com/health         # {"status":"ok",...}
+curl https://<api>.onrender.com/health/ready   # database:true, redis:true
+```
+
+If `/health/ready` reports `database: false`, `DATABASE_URL` is wrong or the
+migrations were not applied.
+
+## D4. Render worker (Background Worker)
+
+Same repo, same `backend` root, same Dockerfile, **same environment variables**.
+Command: `python -m app.worker`. A background worker exposes no HTTP endpoint and
+takes no health check path.
+
+Verify in the logs: `worker starting`, then `redis connected`. An idle queue is
+silent by design — no output does **not** mean it is broken.
+
+## D5. Vercel frontend
+
+| Setting | Value |
+|---|---|
+| Framework | Next.js (auto-detected) |
+| Root directory | `frontend` |
+| Install / Build | `npm ci` / `npm run build` |
+
+Environment variables — **exactly these three**:
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_API_BASE_URL      = https://<api>.onrender.com
+```
+
+Never put the service-role key, `ANTHROPIC_API_KEY`, `REDIS_URL`, `DATABASE_URL`
+or any AWS credential here. `NEXT_PUBLIC_*` values are inlined into the browser
+bundle at build time and are readable by anyone.
+
+## D6. Wire the origins together
+
+Once Vercel gives you a URL:
+
+1. **Render** (API *and* worker): set
+   `APP_BASE_URL = https://<app>.vercel.app` and
+   `CORS_ORIGINS = https://<app>.vercel.app`, then redeploy.
+   Production startup **fails** if `CORS_ORIGINS` is `*`.
+2. **Supabase → Authentication → URL Configuration**:
+   - Site URL: `https://<app>.vercel.app`
+   - Redirect URLs: `https://<app>.vercel.app/**`
+3. Confirm the API allows only that origin:
+
+   ```bash
+   curl -sI -H "Origin: https://<app>.vercel.app" -X OPTIONS \
+     https://<api>.onrender.com/api/v1/documents | grep -i access-control-allow-origin
+   curl -sI -H "Origin: https://evil.example" -X OPTIONS \
+     https://<api>.onrender.com/api/v1/documents | grep -i access-control-allow-origin
+   ```
+
+   The second must **not** echo the evil origin.
+
+## D7. Production smoke test
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Open the Vercel URL | Landing page renders |
+| 2 | Register, then sign out and back in | Session restores on refresh |
+| 3 | Visit `/dashboard` signed out | Redirects to `/login` |
+| 4 | Upload `backend/tests/fixtures/sample_eula.txt` | Document reaches `ready` |
+| 5 | Start analysis | API returns `202`; status `queued` |
+| 6 | Watch Render worker logs | Job claimed; stages advance |
+| 7 | Watch the UI | parsing → chunking → retrieving → extracting → verifying → scoring |
+| 8 | Analysis finishes | Status `complete` or `partial` |
+| 9 | Open a finding | Source pane highlights the exact clause |
+| 10 | Check quarantined findings | Hidden by default, excluded from the score |
+| 11 | Accept a finding, reload | Review persisted |
+| 12 | Download the PDF report | Streams `application/pdf` |
+| 13 | Second org, other org's analysis id | `404` |
+| 14 | Grep API + worker logs | No contract text, no quotes, no keys, no emails |
+| 15 | Grep logs for AWS/GCP calls | None — both flags are `false` |
+
+## D8. Rollback
+
+| Scenario | Action |
+|---|---|
+| Bad frontend deploy | Vercel → Deployments → promote the previous build (instant) |
+| Bad API deploy | Render → Events → roll back. Jobs queue safely in Redis meanwhile |
+| Bad worker deploy | Roll back the worker only; in-flight analyses resume from `completed_categories` |
+| Bad migration | Forward-only. Write a reversing migration. **Snapshot Supabase before migrating** |
+| Runaway cost | Lower `RATE_LIMIT_ANALYSES_PER_HOUR`, or scale the worker to zero — the API stays up and jobs queue |
