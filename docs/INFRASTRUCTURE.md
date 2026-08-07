@@ -654,3 +654,146 @@ Once Vercel gives you a URL:
 | Bad worker deploy | Roll back the worker only; in-flight analyses resume from `completed_categories` |
 | Bad migration | Forward-only. Write a reversing migration. **Snapshot Supabase before migrating** |
 | Runaway cost | Lower `RATE_LIMIT_ANALYSES_PER_HOUR`, or scale the worker to zero — the API stays up and jobs queue |
+
+
+---
+
+# Google Cloud Run deployment (primary backend target)
+
+> **Status: not deployed.** Scripts are written and lint/test-verified; no GCP
+> resource has been created. `render.yaml` is retained as an alternative.
+
+Frontend stays on Vercel. Supabase and Upstash are unchanged.
+
+## C1. Project and APIs
+
+```bash
+gcloud auth login
+gcloud projects create clauseguard-prod --name="ClauseGuard"   # or use an existing one
+gcloud config set project clauseguard-prod
+
+cd deploy/cloudrun
+cp env.example.sh env.sh          # env.sh is gitignored
+# edit env.sh: GCP_PROJECT_ID, GCP_REGION
+source env.sh
+
+./deploy.sh apis                  # run, cloudbuild, artifactregistry, secretmanager
+```
+
+Billing must be enabled on the project, even when covered by credits.
+
+## C2. Least-privilege runtime identity
+
+```bash
+./deploy.sh sa
+```
+
+Creates `clauseguard-run@…` with **only** `roles/secretmanager.secretAccessor`.
+No storage, BigQuery or Vertex role is granted — this deployment needs none.
+
+## C3. Secrets
+
+```bash
+./secrets.sh
+```
+
+Prompts for eight values and pipes each straight into Secret Manager. Values are
+never echoed, never written to disk, never committed. Cloud Run mounts them by
+reference (`NAME:latest`) at runtime, so no secret ever enters an image layer.
+
+## C4. Redis preflight — run this before deploying
+
+```bash
+cd ../../backend
+REDIS_URL="<your upstash rediss:// url>" python -m scripts.preflight_redis
+```
+
+The worker reserves jobs with a blocking `BRPOPLPUSH`. Some serverless Redis
+tiers reject blocking commands, and the failure is silent: the worker starts,
+looks healthy, and never claims a job. This script exits non-zero if that would
+happen. **Do not skip it.**
+
+## C5. Build and deploy
+
+```bash
+cd ../deploy/cloudrun && source env.sh
+./deploy.sh repo      # Artifact Registry
+./deploy.sh build     # Cloud Build -> pushes the backend image
+./deploy.sh api       # Cloud Run service; prints the API URL
+./deploy.sh worker    # Cloud Run worker pool
+```
+
+Or `./deploy.sh all`.
+
+The API needs no start-command override: the Dockerfile `CMD` already binds
+`0.0.0.0:${PORT}`, and Cloud Run injects `PORT`.
+
+## C6. Why a worker pool
+
+The analysis worker is a **pull-based consumer with no HTTP surface** — it
+blocks on Redis and never serves a request. That conflicts with a Cloud Run
+*service* in two ways:
+
+1. A service must answer a startup probe on `$PORT`. The worker binds nothing,
+   so the revision would fail to start.
+2. Cloud Run throttles CPU to near zero outside request handling by default, so
+   the consumer loop would stall.
+
+**Cloud Run worker pools** are built for exactly this shape: no HTTP, no
+throttling, one warm instance. `deploy.sh worker` detects availability with
+`gcloud beta run worker-pools --help` and uses them when present.
+
+### Worker fallback (if worker pools are unavailable)
+
+If the detection fails, `deploy.sh worker` stops rather than deploying something
+broken. Two options:
+
+- **Cloud Run service with `--no-cpu-throttling --min-instances=1`.** Requires
+  adding a small HTTP health listener to `app/worker.py` so the startup probe
+  passes. That is a code change, so it is deliberately *not* applied here.
+- **Compute Engine `e2-micro`.** No code change; often free tier. Run the same
+  image with `python -m app.worker`.
+
+## C7. CORS, after Vercel exists
+
+```bash
+# set FRONTEND_URL in env.sh, then:
+source env.sh && ./deploy.sh api
+```
+
+Production startup refuses `CORS_ORIGINS="*"`, so this must be the real origin.
+Also add the Vercel URL to Supabase → Authentication → Site URL and Redirect URLs.
+
+## C8. Verify
+
+```bash
+API=$(./deploy.sh urls | tail -1)
+curl -fsS "$API/health"          # {"status":"ok",...}
+curl -fsS "$API/health/ready"    # database:true, redis:true
+./deploy.sh logs                 # API + worker logs
+```
+
+Worker logs should show `worker starting` then `redis connected`. **An idle
+queue is silent by design** — no output does not mean it is broken.
+
+## C9. Estimated cost
+
+| Resource | Config | Approx/month |
+|---|---|---|
+| Cloud Run API | 1 vCPU / 512Mi, min 0 | $0–5 (scales to zero) |
+| Cloud Run worker | 1 vCPU / 512Mi, min 1, always-on CPU | $8–15 |
+| Artifact Registry | one image | <$1 |
+| Secret Manager | 8 secrets | <$1 |
+| **Total** | | **~$10–20**, covered by credits |
+
+The warm worker instance dominates — unavoidable for a continuous consumer.
+
+## C10. Rollback
+
+```bash
+gcloud run services update-traffic clauseguard-api --to-revisions=PREVIOUS=100 \
+  --region="$GCP_REGION"
+```
+
+Roll the worker back the same way. Jobs queue safely in Redis meanwhile, and an
+interrupted analysis resumes from `completed_categories`.

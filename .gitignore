@@ -31,6 +31,9 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Cloud Run local deploy config (never commit)
+deploy/cloudrun/env.sh
+
 # Local artifacts
 *.log
 /tmp/

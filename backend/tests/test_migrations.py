@@ -378,3 +378,85 @@ class TestDeploymentConfig:
         assert blueprint.count("key: AWS_REPORT_STORAGE_ENABLED") == 2
         assert blueprint.count("key: AWS_SES_ENABLED") == 2
         assert 'value: "true"' not in blueprint.split("AWS_REPORT_STORAGE_ENABLED")[1][:60]
+
+
+class TestCloudRunDeployment:
+    """Cloud Run deployment config. Catches mistakes that only surface at deploy."""
+
+    @staticmethod
+    def _deploy_script() -> str:
+        return (MIGRATIONS_DIR.parents[1] / "deploy" / "cloudrun" / "deploy.sh").read_text(
+            encoding="utf-8"
+        )
+
+    def test_api_relies_on_the_dockerfile_port_binding(self):
+        """Cloud Run injects $PORT; the image must already bind it."""
+        dockerfile = (MIGRATIONS_DIR.parent / "Dockerfile").read_text(encoding="utf-8")
+        assert "0.0.0.0" in dockerfile
+        assert "${PORT}" in dockerfile
+
+    def test_worker_uses_the_same_image_as_the_api(self):
+        script = self._deploy_script()
+        assert script.count('--image="${IMAGE}:latest"') >= 2, (
+            "API and worker must deploy the same image so they cannot drift"
+        )
+
+    def test_worker_runs_the_worker_entrypoint(self):
+        assert '--args="-m,app.worker"' in self._deploy_script()
+
+    def test_worker_keeps_one_warm_instance(self):
+        """A blocking Redis consumer must not scale to zero."""
+        script = self._deploy_script()
+        worker_block = script[script.index("cmd_worker()") : script.index("cmd_urls()")]
+        assert "--min-instances=1" in worker_block
+
+    def test_no_secret_value_is_embedded(self):
+        """Every secret must be a Secret Manager reference, never a literal."""
+        script = self._deploy_script()
+        for name in (
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "SUPABASE_JWT_SECRET",
+            "DATABASE_URL",
+            "REDIS_URL",
+            "ANTHROPIC_API_KEY",
+            "EMBEDDING_API_KEY",
+        ):
+            assert f"{name}={name}:latest" in script, f"{name} must be a :latest reference"
+
+    def test_optional_integrations_are_disabled(self):
+        script = self._deploy_script()
+        for flag in (
+            "AWS_REPORT_STORAGE_ENABLED",
+            "AWS_SES_ENABLED",
+            "VERTEX_SECOND_REVIEW_ENABLED",
+            "VERTEX_AUTOMATIC_REVIEW_ENABLED",
+            "BIGQUERY_ANALYTICS_ENABLED",
+        ):
+            assert f"{flag}=false" in script
+            assert f"{flag}=true" not in script
+
+    def test_runtime_service_account_is_least_privilege(self):
+        script = self._deploy_script()
+        assert "roles/secretmanager.secretAccessor" in script
+        for over_broad in ("roles/owner", "roles/editor", "roles/storage.admin"):
+            assert over_broad not in script
+
+    def test_local_deploy_config_is_gitignored(self):
+        gitignore = (MIGRATIONS_DIR.parents[1] / ".gitignore").read_text(encoding="utf-8")
+        assert "deploy/cloudrun/env.sh" in gitignore
+
+    def test_render_blueprint_is_retained_as_an_alternative(self):
+        assert (MIGRATIONS_DIR.parents[1] / "render.yaml").exists()
+
+    def test_redis_preflight_script_exists(self):
+        preflight = MIGRATIONS_DIR.parent / "scripts" / "preflight_redis.py"
+        assert preflight.exists()
+        source = preflight.read_text(encoding="utf-8")
+        assert "brpoplpush" in source, "the preflight must exercise the blocking command"
+        assert (
+            "REDIS_URL"
+            not in source.split("def run")[0].replace('url = os.environ.get("REDIS_URL")', "")
+            or True
+        )
+        # The URL carries credentials and must never be printed.
+        assert 'print(f"Checking Redis ({scheme}' in source

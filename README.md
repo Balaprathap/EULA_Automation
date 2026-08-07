@@ -351,8 +351,9 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) and
 | Component | Target | Status |
 |---|---|---|
 | Frontend | Vercel | Configured, not deployed |
-| API | Render Web Service | Configured via [`render.yaml`](render.yaml), not deployed |
-| Worker | Render Background Worker | Configured via [`render.yaml`](render.yaml), not deployed |
+| API | **Google Cloud Run service** | Configured via [`deploy/cloudrun/`](deploy/cloudrun/), not deployed |
+| Worker | **Google Cloud Run worker pool** | Configured via [`deploy/cloudrun/`](deploy/cloudrun/), not deployed |
+| *(alternative)* | Render | [`render.yaml`](render.yaml) retained as a fallback |
 | Database / Auth / Storage | Supabase | Migrations ready, production project not provisioned |
 | Queue / cache | Upstash Redis | Not provisioned |
 
