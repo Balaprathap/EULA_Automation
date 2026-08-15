@@ -141,7 +141,7 @@ cmd_worker() {
       --set-env-vars="$COMMON_ENV" \
       --set-secrets="$SECRET_REFS" \
       --cpu=1 --memory=512Mi \
-      --min-instances=1 --max-instances=2 \
+      --instances=1 \
       --project="$GCP_PROJECT_ID"
   else
     # FALLBACK: a Cloud Run service with CPU always allocated and one warm
