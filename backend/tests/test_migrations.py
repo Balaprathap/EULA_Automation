@@ -415,13 +415,22 @@ class TestCloudRunDeployment:
         script = self._deploy_script()
         for name in (
             "SUPABASE_SERVICE_ROLE_KEY",
-            "SUPABASE_JWT_SECRET",
             "DATABASE_URL",
             "REDIS_URL",
             "ANTHROPIC_API_KEY",
             "EMBEDDING_API_KEY",
         ):
             assert f"{name}={name}:latest" in script, f"{name} must be a :latest reference"
+
+    def test_legacy_jwt_secret_is_not_deployed(self):
+        """Supabase signs with ES256, verified via JWKS. The legacy HS256 shared
+        secret is obsolete for this deployment and must not be provisioned."""
+        script = self._deploy_script()
+        secrets_script = (
+            MIGRATIONS_DIR.parents[1] / "deploy" / "cloudrun" / "secrets.sh"
+        ).read_text(encoding="utf-8")
+        assert "SUPABASE_JWT_SECRET=SUPABASE_JWT_SECRET:latest" not in script
+        assert "\n  SUPABASE_JWT_SECRET\n" not in secrets_script
 
     def test_optional_integrations_are_disabled(self):
         script = self._deploy_script()

@@ -402,3 +402,128 @@ class TestSafeErrorResponses:
             decode(make_token(private, "nope", "ES256"))
         assert excinfo.value.status_code == 401
         assert excinfo.value.code == "AUTHENTICATION_REQUIRED"
+
+
+class TestJwtSecretIsLegacyOnly:
+    """Supabase migrated to ES256. SUPABASE_JWT_SECRET must not be required, and
+    leaving it unset must REFUSE symmetric tokens rather than weaken anything."""
+
+    def test_production_starts_without_the_legacy_secret(self):
+        from app.core.config import Settings
+
+        settings = Settings(
+            _env_file=None,
+            environment="production",
+            cors_origins=["https://app.example.com"],
+            database_url="postgresql://user:pass@localhost:5432/db",
+            supabase_url="https://example.supabase.co",
+            supabase_service_role_key="dummy-service-role-key",
+            anthropic_api_key="dummy-anthropic-key",
+            embedding_provider="openai",
+            embedding_api_key="dummy-embedding-key",
+            redis_url="rediss://localhost:6379/0",
+        )
+        assert settings.supabase_jwt_secret == ""
+
+    def test_other_supabase_secrets_are_still_required(self):
+        """Only the JWT secret became optional; nothing else was relaxed."""
+        from app.core.config import Settings
+
+        for field in ("supabase_url", "supabase_service_role_key", "database_url"):
+            kwargs = {
+                "_env_file": None,
+                "environment": "production",
+                "cors_origins": ["https://app.example.com"],
+                "database_url": "postgresql://x",
+                "supabase_url": "https://example.supabase.co",
+                "supabase_service_role_key": "k",
+                "anthropic_api_key": "a",
+                "embedding_provider": "openai",
+                "embedding_api_key": "e",
+                "redis_url": "rediss://x",
+                field: "",
+            }
+            with pytest.raises(ValueError):
+                Settings(**kwargs)
+
+    def test_es256_verifies_with_no_secret_configured(self, es256_key, seeded_cache):
+        """The production path: JWKS only, secret empty."""
+        private, jwk = es256_key
+        claims = decode_supabase_jwt(
+            make_token(private, jwk["kid"], "ES256"),
+            secret="",
+            supabase_url=SUPABASE_URL,
+        )
+        assert claims["sub"] == SUBJECT
+
+    def test_hs256_is_refused_when_no_secret_is_configured(self):
+        """Fails CLOSED. An unset secret must never mean 'skip verification'."""
+        now = int(time.time())
+        token = jwt.encode(
+            {"sub": SUBJECT, "aud": AUDIENCE, "iss": ISSUER, "exp": now + 3600},
+            SECRET,
+            algorithm="HS256",
+        )
+        with pytest.raises(Unauthenticated):
+            decode_supabase_jwt(token, secret="", supabase_url=SUPABASE_URL)
+
+    def test_legacy_secret_cannot_verify_an_es256_token(self, es256_key, seeded_cache):
+        """The old HS256 secret must never be used against a current ES256 token."""
+        private, jwk = es256_key
+        token = make_token(private, jwk["kid"], "ES256")
+        # Even with a secret present, the asymmetric branch uses JWKS only.
+        claims = decode_supabase_jwt(token, secret=SECRET, supabase_url=SUPABASE_URL)
+        assert claims["sub"] == SUBJECT
+        # And the JWKS key cannot be swapped for the shared secret.
+        with pytest.raises(Unauthenticated):
+            decode_supabase_jwt(token, secret=SECRET, supabase_url="")
+
+    def test_all_claim_validation_still_applies_without_a_secret(self, es256_key, seeded_cache):
+        """Expiry, issuer, audience and sub remain enforced on the JWKS path."""
+        private, jwk = es256_key
+        now = int(time.time())
+        cases = [
+            ("expired", {"exp": now - 10, "iat": now - 100}),
+            ("bad issuer", {"iss": "https://evil.example/auth/v1"}),
+            ("bad audience", {"aud": "not-authenticated"}),
+            ("missing sub", {"sub": None}),
+        ]
+        for label, override in cases:
+            token = make_token(private, jwk["kid"], "ES256", **override)
+            with pytest.raises(Unauthenticated), _label(label):
+                decode_supabase_jwt(token, secret="", supabase_url=SUPABASE_URL)
+
+    def test_alg_none_still_rejected_without_a_secret(self):
+        now = int(time.time())
+        token = jwt.encode(
+            {"sub": SUBJECT, "aud": AUDIENCE, "iss": ISSUER, "exp": now + 3600},
+            key="",
+            algorithm="none",
+        )
+        with pytest.raises(Unauthenticated):
+            decode_supabase_jwt(token, secret="", supabase_url=SUPABASE_URL)
+
+    def test_secret_is_never_exposed_to_the_browser(self):
+        """No NEXT_PUBLIC_ variant may exist anywhere."""
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[2]
+        for candidate in (root / ".env.example", root / "frontend" / ".env.example"):
+            if candidate.exists():
+                text = candidate.read_text(encoding="utf-8")
+                assert "NEXT_PUBLIC_SUPABASE_JWT_SECRET" not in text
+        frontend = root / "frontend"
+        for path in list(frontend.glob("lib/*.ts")) + list(frontend.glob("app/**/*.tsx")):
+            assert "SUPABASE_JWT_SECRET" not in path.read_text(encoding="utf-8"), path
+
+
+import contextlib as _contextlib  # noqa: E402
+
+
+@_contextlib.contextmanager
+def _label(name: str):
+    """Attach a case label to an assertion failure."""
+    try:
+        yield
+    except AssertionError as exc:  # pragma: no cover - only on failure
+        raise AssertionError(f"{name}: {exc}") from exc

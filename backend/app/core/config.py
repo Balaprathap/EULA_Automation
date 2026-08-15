@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
+    # Legacy only. Supabase now signs with ES256/RS256, verified via the project
+    # JWKS endpoint. Set this ONLY if the project still issues HS256 tokens;
+    # leaving it empty disables symmetric verification entirely, which is the
+    # safer configuration for a project that has migrated to asymmetric keys.
     supabase_jwt_secret: str = ""
     supabase_storage_bucket: str = "documents"
     supabase_reports_bucket: str = "reports"
@@ -162,7 +166,11 @@ class Settings(BaseSettings):
                 "DATABASE_URL": self.database_url,
                 "SUPABASE_URL": self.supabase_url,
                 "SUPABASE_SERVICE_ROLE_KEY": self.supabase_service_role_key,
-                "SUPABASE_JWT_SECRET": self.supabase_jwt_secret,
+                # SUPABASE_JWT_SECRET is deliberately NOT required. Supabase
+                # signs access tokens asymmetrically (ES256/RS256) and those are
+                # verified against the project JWKS, which needs no shared
+                # secret. The secret is only consulted for legacy HS256 tokens;
+                # leaving it unset simply means such tokens are refused.
                 "REDIS_URL": self.redis_url,
             }
             missing += [name for name, value in required.items() if not value]

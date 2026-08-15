@@ -7,11 +7,16 @@
 set -euo pipefail
 : "${GCP_PROJECT_ID:?source env.sh first}"
 
+# Required for this deployment.
+#
+# SUPABASE_JWT_SECRET is intentionally absent: Supabase signs access tokens with
+# ES256 and the backend verifies them against the project JWKS endpoint, which
+# needs no shared secret. Add it to OPTIONAL_SECRETS below only if your project
+# still issues legacy HS256 tokens.
 SECRETS=(
   SUPABASE_URL
   SUPABASE_ANON_KEY
   SUPABASE_SERVICE_ROLE_KEY
-  SUPABASE_JWT_SECRET
   DATABASE_URL
   REDIS_URL
   ANTHROPIC_API_KEY

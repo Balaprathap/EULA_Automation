@@ -20,11 +20,12 @@ IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO}/backend"
 RUNTIME_SA="clauseguard-run@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
 
 # Secrets mounted as environment variables, by reference. SECRET:latest form.
+# SUPABASE_JWT_SECRET is not listed: ES256 tokens are verified via the project
+# JWKS endpoint and need no shared secret.
 SECRET_REFS="\
 SUPABASE_URL=SUPABASE_URL:latest,\
 SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest,\
 SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,\
-SUPABASE_JWT_SECRET=SUPABASE_JWT_SECRET:latest,\
 DATABASE_URL=DATABASE_URL:latest,\
 REDIS_URL=REDIS_URL:latest,\
 ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,\

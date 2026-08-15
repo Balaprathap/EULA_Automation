@@ -23,6 +23,10 @@ async def get_current_user(
     settings: Settings = Depends(get_settings),
 ) -> AuthenticatedUser:
     token = extract_bearer_token(authorization)
+    # ES256/RS256 tokens are verified against the project JWKS and ignore the
+    # secret entirely. supabase_jwt_secret is passed only so a legacy HS256
+    # token can still be verified where a project has not migrated; when it is
+    # empty, symmetric tokens are refused rather than accepted unverified.
     claims = decode_supabase_jwt(
         token,
         settings.supabase_jwt_secret,
