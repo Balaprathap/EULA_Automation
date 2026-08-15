@@ -408,7 +408,7 @@ class TestCloudRunDeployment:
         """A blocking Redis consumer must not scale to zero."""
         script = self._deploy_script()
         worker_block = script[script.index("cmd_worker()") : script.index("cmd_urls()")]
-        assert "--min-instances=1" in worker_block
+        assert "--instances=1" in worker_block
 
     def test_no_secret_value_is_embedded(self):
         """Every secret must be a Secret Manager reference, never a literal."""

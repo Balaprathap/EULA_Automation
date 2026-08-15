@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import builtins
-import json
 from typing import Any
 
 from app.db.session import execute, fetch_all, fetch_one, fetch_value, get_pool
@@ -221,7 +220,7 @@ class AnalysisRepository:
             fields.get("executive_summary"),
             fields.get("degraded_retrieval", False),
             fields.get("degraded_reason"),
-            json.dumps(fields.get("stage_timings_ms") or {}),
+            fields.get("stage_timings_ms") or {},
             fields.get("model_used"),
             fields.get("progress_message"),
         )
