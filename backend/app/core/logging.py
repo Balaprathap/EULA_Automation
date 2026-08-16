@@ -36,6 +36,7 @@ SENSITIVE_KEYS = frozenset(
         "api_key",
         "apikey",
         "anthropic_api_key",
+        "groq_api_key",
         "embedding_api_key",
         "supabase_service_role_key",
         "supabase_jwt_secret",

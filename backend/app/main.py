@@ -17,6 +17,7 @@ from app import __version__
 from app.api.v1 import (
     action_items,
     analyses,
+    chat,
     documents,
     findings,
     health,
@@ -263,6 +264,7 @@ async def handle_unexpected(request: Request, exc: Exception):
 
 
 app.include_router(health.router)
+app.include_router(chat.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")
 app.include_router(analyses.router, prefix="/api/v1")

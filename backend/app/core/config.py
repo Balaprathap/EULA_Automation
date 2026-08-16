@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     anthropic_cached_input_cost_per_mtok: float = 0.30
     anthropic_output_cost_per_mtok: float = 15.00
 
+    # --- Groq chatbot ---------------------------------------------------------
+    groq_api_key: str | None = None
+    groq_model: str = "openai/gpt-oss-20b"
+    groq_max_completion_tokens: int = 900
+    groq_timeout_seconds: float = 45.0
+    groq_reasoning_effort: Literal["low", "medium", "high"] = "low"
+
     # --- Embeddings ----------------------------------------------------------
     embedding_provider: Literal["openai", "voyage", "deterministic"] = "openai"
     embedding_model: str = "text-embedding-3-small"
