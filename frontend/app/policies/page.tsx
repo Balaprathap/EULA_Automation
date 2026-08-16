@@ -56,6 +56,10 @@ function PolicyList() {
             sent to the model.
           </p>
         </div>
+
+        <Link href="/policies/new">
+          <Button>Create policy with AI ✦</Button>
+        </Link>
       </div>
 
       {error ? <ErrorState error={error} onRetry={load} /> : null}

@@ -21,7 +21,9 @@ import type {
   Evidence,
   Finding,
   Policy,
+  PolicyAIDraft,
   PolicyRule,
+  PolicyRuleInput,
   ReportStatus,
   Review,
 } from './types';
@@ -132,8 +134,26 @@ export const api = {
   getPolicy: (id: string) => request<Policy>(`/api/v1/policies/${id}`),
   listRules: (policyId: string) => request<PolicyRule[]>(`/api/v1/policies/${policyId}/rules`),
 
-  createPolicy: (payload: { name: string; description?: string; rules: unknown[] }) =>
-    request<Policy>('/api/v1/policies', { method: 'POST', body: JSON.stringify(payload) }),
+  generatePolicyDraft: (payload: {
+    prompt: string;
+    agreement_type?: string;
+    name_hint?: string;
+    rule_count?: number;
+  }) =>
+    request<PolicyAIDraft>('/api/v1/policies/ai-draft', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  createPolicy: (payload: {
+    name: string;
+    description?: string;
+    rules: PolicyRuleInput[];
+  }) =>
+    request<Policy>('/api/v1/policies', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   updatePolicy: (
     id: string,

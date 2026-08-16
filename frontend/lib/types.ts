@@ -273,3 +273,17 @@ export interface ChatResponse {
     total_tokens: number;
   };
 }
+
+export type PolicyRuleInput = Omit<PolicyRule, 'id' | 'policy_id'>;
+
+export interface PolicyAIDraft {
+  name: string;
+  description: string | null;
+  rules: PolicyRuleInput[];
+  model: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+  };
+}
