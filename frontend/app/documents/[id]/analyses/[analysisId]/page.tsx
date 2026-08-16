@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AnalysisProgress } from '@/components/AnalysisProgress';
+import { ChatDrawer } from '@/components/ChatDrawer';
 import { EvidencePane } from '@/components/EvidencePane';
 import { FindingCard } from '@/components/FindingCard';
 import {
@@ -224,6 +225,13 @@ function FindingsWorkspace() {
         action={
           !running ? (
             <>
+              {analysis.status === 'complete' || analysis.status === 'partial' ? (
+                <ChatDrawer
+                  documentId={id}
+                  documentTitle={documentTitle}
+                  onSelectFinding={(findingId) => setSelectedId(findingId)}
+                />
+              ) : null}
               <Button variant="secondary" onClick={() => exportFindings('csv')}>
                 Export CSV
               </Button>

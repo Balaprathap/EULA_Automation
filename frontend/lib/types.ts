@@ -238,3 +238,38 @@ export interface ActionItemUpdate {
   status?: ActionItemStatus;
   reviewer_note?: string | null;
 }
+
+
+/* ------------------------------------------------------------------ *
+ * ClauseGuard document chat
+ * ------------------------------------------------------------------ */
+
+export interface ChatHistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatCitation {
+  ref: string;
+  type: 'chunk' | 'finding';
+  chunk_id: string | null;
+  finding_id: string | null;
+  ordinal: number | null;
+  heading: string | null;
+  category: string | null;
+  severity: string | null;
+  quote: string | null;
+  doc_start_offset: number | null;
+  doc_end_offset: number | null;
+}
+
+export interface ChatResponse {
+  answer: string;
+  citations: ChatCitation[];
+  model: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+  };
+}

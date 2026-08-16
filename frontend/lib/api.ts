@@ -14,6 +14,8 @@ import type {
   ActionItemSummary,
   ActionItemUpdate,
   Analysis,
+  ChatHistoryMessage,
+  ChatResponse,
   ApiError,
   Document,
   Evidence,
@@ -257,6 +259,17 @@ export const api = {
     const match = /filename="?([^";]+)"?/.exec(disposition);
     return { blob: await response.blob(), filename: match?.[1] ?? `clauseguard-report.pdf` };
   },
+
+  // --- ClauseGuard chat ---
+  askChat: (payload: {
+    document_id: string;
+    message: string;
+    history: ChatHistoryMessage[];
+  }) =>
+    request<ChatResponse>('/api/v1/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   // --- usage / admin ---
   getDashboard: () => request<Record<string, any>>('/api/v1/dashboard'),
