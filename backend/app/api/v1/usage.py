@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import enforce_request_rate_limit, require_admin
@@ -17,7 +19,7 @@ async def get_usage(
     days: int = Query(default=30, ge=1, le=365),
     user: AuthenticatedUser = Depends(enforce_request_rate_limit),
 ):
-    window = f"{days} days"
+    window = timedelta(days=days)
 
     totals = (
         await fetch_one(
