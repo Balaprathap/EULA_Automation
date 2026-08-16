@@ -2,20 +2,27 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.deps import enforce_request_rate_limit, require_admin
+from app.core.config import get_settings
 from app.core.errors import NotFound, ValidationFailed
 from app.core.security import AuthenticatedUser
 from app.db.repositories.policies import PolicyRepository
 from app.schemas.api import (
+    PolicyAIDraftRequest,
+    PolicyAIDraftResponse,
     PolicyCreateRequest,
     PolicyResponse,
     PolicyRuleResponse,
     PolicyRulesReplaceRequest,
     PolicyUpdateRequest,
 )
-from app.services.audit import AuditAction, record_audit
+from app.services.audit import AuditAction, record_audit, record_usage
+from app.services.policy_builder import (
+    GroqPolicyBuilderService,
+    PolicyDraftProviderError,
+)
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 policies = PolicyRepository()
@@ -90,6 +97,76 @@ async def create_policy(
         metadata={"name": payload.name, "rules": len(payload.rules)},
     )
     return to_response(row, len(payload.rules))
+
+
+@router.post("/ai-draft", response_model=PolicyAIDraftResponse)
+async def generate_ai_policy_draft(
+    request: Request,
+    payload: PolicyAIDraftRequest,
+    user: AuthenticatedUser = Depends(require_admin),
+    _rate_user: AuthenticatedUser = Depends(enforce_request_rate_limit),
+):
+    """Generate an unsaved AI policy proposal for administrator review."""
+
+    settings = get_settings()
+
+    try:
+        service = GroqPolicyBuilderService(settings)
+        draft, usage = await service.generate(
+            prompt=payload.prompt,
+            agreement_type=payload.agreement_type,
+            rule_count=payload.rule_count,
+            name_hint=payload.name_hint,
+        )
+    except (PolicyDraftProviderError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    prompt_tokens = int(usage.get("prompt_tokens") or 0)
+    completion_tokens = int(usage.get("completion_tokens") or 0)
+    total_tokens = int(
+        usage.get("total_tokens") or prompt_tokens + completion_tokens
+    )
+
+    await record_usage(
+        org_id=user.org_id,
+        actor_id=user.user_id,
+        event_type="policy_ai_draft",
+        provider="groq",
+        model=settings.groq_model,
+        input_tokens=prompt_tokens,
+        output_tokens=completion_tokens,
+        estimated_cost_usd=0.0,
+        metadata={
+            "rule_count": len(draft["rules"]),
+            "agreement_type": payload.agreement_type or "general",
+        },
+    )
+
+    await record_audit(
+        org_id=user.org_id,
+        actor_id=user.user_id,
+        actor_email=user.email,
+        action=AuditAction.POLICY_AI_DRAFT,
+        resource_type="policy_draft",
+        resource_id=None,
+        request_id=getattr(request.state, "request_id", None),
+        metadata={
+            "rule_count": len(draft["rules"]),
+            "agreement_type": payload.agreement_type or "general",
+        },
+    )
+
+    return PolicyAIDraftResponse(
+        name=draft["name"],
+        description=draft["description"],
+        rules=draft["rules"],
+        model=settings.groq_model,
+        usage={
+            "input_tokens": prompt_tokens,
+            "output_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+        },
+    )
 
 
 @router.get("/{policy_id}", response_model=PolicyResponse)

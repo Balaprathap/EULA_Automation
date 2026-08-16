@@ -26,6 +26,7 @@ class AuditAction:
     POLICY_UPDATE = "policy.update"
     POLICY_RULES_REPLACE = "policy.rules.replace"
     POLICY_VERSION_CREATE = "policy.version.create"
+    POLICY_AI_DRAFT = "policy.ai_draft"
     FINDING_ACCEPT = "finding.accept"
     FINDING_DISMISS = "finding.dismiss"
     FINDING_ESCALATE = "finding.escalate"

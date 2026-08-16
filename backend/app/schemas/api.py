@@ -88,6 +88,27 @@ class PolicyCreateRequest(BaseModel):
     rules: list[PolicyRuleInput] = Field(default_factory=list, max_length=60)
 
 
+class PolicyAIDraftRequest(BaseModel):
+    """Generate an unsaved policy proposal for administrator review."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    prompt: str = Field(min_length=10, max_length=4000)
+    agreement_type: str | None = Field(default=None, max_length=120)
+    name_hint: str | None = Field(default=None, max_length=200)
+    rule_count: int = Field(default=8, ge=3, le=12)
+
+
+class PolicyAIDraftResponse(BaseModel):
+    """AI proposal only. Nothing represented here has been persisted."""
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    rules: list[PolicyRuleInput] = Field(min_length=3, max_length=12)
+    model: str
+    usage: dict[str, Any] = Field(default_factory=dict)
+
+
 class PolicyUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
