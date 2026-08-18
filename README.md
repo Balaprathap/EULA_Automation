@@ -17,7 +17,7 @@ document behind every single finding.
 
 | Field | Value |
 |---|---|
-| **Student** | aish |
+| **Student** | Balaprathap Chellakkannu |
 | **Z-number** | Z23816925 |
 | **FAU email** | bchellakkann@fau.edu |
 | **Deployed application** | (https://eula-automation.vercel.app/) |
