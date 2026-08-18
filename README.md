@@ -18,19 +18,17 @@ document behind every single finding.
 | Field | Value |
 |---|---|
 | **Student** | aish |
-| **Z-number** | `TODO: Z########` |
-| **FAU email** | `TODO: ______@fau.edu` |
-| **Deployed application** | `TODO: https://…` — not yet deployed; see [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) |
+| **Z-number** | Z23816925 |
+| **FAU email** | bchellakkann@fau.edu |
+| **Deployed application** | (https://eula-automation.vercel.app/) |
 | **Demo video (3–5 min)** | `TODO: https://…` |
 | **Repository** | GitHub Classroom, `main` branch |
 | **Planning document** | [`plan.md`](plan.md) |
 | **Design document** | [`design.md`](design.md) |
 
-> The four `TODO` values are the only facts this repository cannot supply for
-> itself. Fill them in before submitting on Canvas.
 
-### AI integration, in one paragraph
 
+### AI integration, 
 ClauseGuard is not a chatbot wrapper. For each of twelve compliance categories
 it runs hybrid retrieval over a single agreement — pgvector cosine similarity
 fused with PostgreSQL full-text search via Reciprocal Rank Fusion — and sends
